@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI-Powered Enrichment Analysis Platform</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="ambient ambient-a"></div>
+  <div class="ambient ambient-b"></div>
+
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo"></div>
+        <div>
+          <h1>AI-Powered Enrichment Analysis Platform</h1>
+          <p>Upload genes, run enrichment, and get pathway explanations in plain language.</p>
+        </div>
+      </div>
+      <div class="pill-row">
+        <div class="pill"><strong>GO</strong> Biological Process</div>
+        <div class="pill"><strong>KEGG</strong> Pathways</div>
+        <div class="pill"><strong>Reactome</strong> Reactions</div>
+        <div class="pill"><strong>STRING</strong> Networks</div>
+      </div>
+    </header>
+
+    <section class="hero">
+      <div class="hero-copy">
+        <h2>Turn a <span class="grad">gene list</span> into an interpretable biological story.</h2>
+        <p>
+          Paste genes or upload a file, let the backend normalize aliases and synonyms, and then run real enrichment
+          analysis with GO, KEGG, Reactome, and STRING outputs.
+        </p>
+        <div class="btn-row">
+          <button id="runBtn">Run Analysis</button>
+          <button class="secondary" id="demoBtn">Load Demo NASH Genes</button>
+          <button class="ghost" id="clearBtn">Clear</button>
+          <button class="secondary" id="downloadBtn">Download Report JSON</button>
+        </div>
+        <div class="metric-row">
+          <div class="metric"><div class="k" id="geneCount">0</div><div class="l">input genes detected</div></div>
+          <div class="metric"><div class="k" id="resultCount">0</div><div class="l">enriched pathways shown</div></div>
+          <div class="metric"><div class="k" id="aliasCount">0</div><div class="l">synonyms normalized</div></div>
+          <div class="metric"><div class="k">AI</div><div class="l">plain-language summaries</div></div>
+        </div>
+      </div>
+      <div class="hero-side">
+        <div class="sample-box">
+          <div class="sample-title">Good demo input for NASH / NAFLD</div>
+          <code>PNPLA3
+TM6SF2
+MBOAT7
+TNF
+IL6
+IL1B
+CCL2
+STAT3
+TGFB1
+COL1A1
+COL3A1
+ACTA2
+CTGF</code>
+        </div>
+        <div class="helper">The app also tries to rescue common synonyms like TGF-β1 → TGFB1 and NRF2 → NFE2L2.</div>
+      </div>
+    </section>
+
+    <section class="layout">
+      <aside class="panel input-panel">
+        <div class="panel-head">
+          <h3>Input</h3>
+          <p>Upload a file or paste your gene list. The backend will normalize aliases before analysis.</p>
+        </div>
+        <div class="panel-body">
+          <div class="field">
+            <label>Upload gene list</label>
+            <label class="file-label">
+              <input type="file" id="fileInput" accept=".txt,.csv,.tsv" />
+              Choose file
+            </label>
+            <div class="helper">TXT, CSV, or TSV files.</div>
+          </div>
+
+          <div class="field">
+            <label for="geneInput">Gene list</label>
+            <textarea id="geneInput" placeholder="Paste one gene per line, or a comma-separated list..."></textarea>
+            <div class="helper">Try symbols or common aliases. Unrecognized text will be shown in the normalization panel.</div>
+          </div>
+
+          <div class="field">
+            <label>Analysis mode</label>
+            <div class="switches" id="modeSwitches">
+              <div class="switch active" data-mode="combined">Combined</div>
+              <div class="switch" data-mode="go">GO</div>
+              <div class="switch" data-mode="kegg">KEGG</div>
+              <div class="switch" data-mode="reactome">Reactome</div>
+              <div class="switch" data-mode="string">STRING</div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="organism">Organism</label>
+            <select id="organism">
+              <option value="human">Human (Homo sapiens)</option>
+              <option value="mouse">Mouse (Mus musculus)</option>
+              <option value="rat">Rat (Rattus norvegicus)</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="fdr">FDR threshold</label>
+            <input class="input" id="fdr" type="number" step="0.001" min="0.001" max="0.5" value="0.05" />
+          </div>
+
+          <div class="field">
+            <label for="aiTone">AI explanation style</label>
+            <select id="aiTone">
+              <option value="concise">Concise</option>
+              <option value="balanced" selected>Balanced</option>
+              <option value="deep">Deep-dive</option>
+            </select>
+          </div>
+        </div>
+      </aside>
+
+      <main class="panel results-panel">
+        <div class="panel-head">
+          <h3>Enrichment results</h3>
+          <p>Top pathways are ranked by score. Click a card to update the explanation panel and STRING view.</p>
+        </div>
+        <div class="panel-body">
+          <div id="resultsArea" class="results-grid">
+            <div class="empty-state">No results yet. Paste a gene list or click <b>Load Demo Genes</b>, then run the analysis.</div>
+          </div>
+        </div>
+      </main>
+
+      <aside class="right-stack">
+        <section class="panel explain-panel">
+          <div class="panel-head">
+            <h3>AI pathway explanation</h3>
+            <p>Plain-language interpretation of the selected pathway.</p>
+          </div>
+          <div class="panel-body">
+            <h4 id="expTitle" class="explainer-title">Waiting for analysis</h4>
+            <p id="expText" class="explainer-text">
+              Run an analysis to see how the platform connects your gene list with pathway biology, network context, and likely mechanistic themes.
+            </p>
+            <div class="chip-row" id="expChips"></div>
+
+            <div class="copilot-divider"></div>
+
+            <div class="copilot-header">
+              <h4 class="explainer-title" style="margin-bottom: 6px;">Ask about this pathway</h4>
+              <p class="helper" style="margin: 0;">Type a doubt below. You can ask about genes, disease relevance, or why the pathway matters.</p>
+            </div>
+
+            <div id="selectedPathwayLabel" class="selected-pathway-label">No pathway selected yet.</div>
+
+            <div id="chatBox" class="chat-box" aria-live="polite"></div>
+
+            <div class="chat-quick-actions">
+              <button type="button" class="quick-prompt" data-prompt="Explain this pathway in simple terms.">Explain simply</button>
+              <button type="button" class="quick-prompt" data-prompt="Why is this pathway relevant to a disease?">Relevance</button>
+              <button type="button" class="quick-prompt" data-prompt="Which genes are the main drivers here?">Key genes</button>
+              <button type="button" class="quick-prompt" data-prompt="What therapeutic targets should I look at?">Drug targets</button>
+            </div>
+
+            <div class="chat-input-row">
+              <textarea
+                id="pathwayQuestion"
+                placeholder="Ask a doubt about this pathway...
+Example:
+Why is STAT3 important here?
+Is this pathway relevant to NASH?
+What genes are driving the signal?"
+              ></textarea>
+              <button id="askPathwayBtn" type="button">Ask AI</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel network-panel">
+          <div class="panel-head">
+            <h3>STRING network</h3>
+            <p>Live network image built from the current gene list.</p>
+          </div>
+          <div class="panel-body">
+            <div id="networkFrame" class="network-frame empty-state">STRING network will appear here after analysis.</div>
+          </div>
+        </section>
+
+        <section class="panel normalizer-panel">
+          <div class="panel-head">
+            <h3>Gene normalization</h3>
+            <p>Synonyms and unmatched entries are shown here.</p>
+          </div>
+          <div class="panel-body">
+            <div id="normalizationBox" class="norm-box empty-state">No gene list loaded yet.</div>
+          </div>
+        </section>
+
+        <section class="panel chart-panel">
+          <div class="panel-head">
+            <h3>Enrichment score view</h3>
+            <p>A visual summary of the strongest hits.</p>
+          </div>
+          <div class="panel-body">
+            <div id="chart" class="chart"></div>
+          </div>
+        </section>
+      </aside>
+    </section>
+
+    <footer class="footer-note">
+      This app uses a real backend API for enrichment and a curated fallback so the workflow remains usable even when an external service is unavailable.
+    </footer>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

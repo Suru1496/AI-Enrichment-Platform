@@ -1,0 +1,14 @@
+{
+  "name": "nash-ai-enrichment-app",
+  "version": "1.0.0",
+  "description": "AI-powered enrichment analysis platform with real g:Profiler and STRING integration",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

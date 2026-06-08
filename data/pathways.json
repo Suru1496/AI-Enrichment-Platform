@@ -1,0 +1,207 @@
+{
+  "go": [
+    {
+      "title": "Response to cytokine",
+      "genes": [
+        "IL6",
+        "TNF",
+        "STAT3",
+        "CXCL8",
+        "JUN",
+        "FOS",
+        "NFKB1",
+        "SOCS3"
+      ],
+      "description": "Immune and inflammatory signaling is active, suggesting the input captures stress-responsive transcriptional programs."
+    },
+    {
+      "title": "Cell proliferation regulation",
+      "genes": [
+        "TP53",
+        "MYC",
+        "CDK1",
+        "CCND1",
+        "AKT1",
+        "MTOR",
+        "KRAS",
+        "PTEN"
+      ],
+      "description": "A strong cell-cycle and growth-control signal indicates a balance between proliferation and checkpoint control."
+    },
+    {
+      "title": "Apoptotic signaling",
+      "genes": [
+        "TP53",
+        "CASP3",
+        "BCL2",
+        "PTEN",
+        "TNF",
+        "JUN",
+        "FAS"
+      ],
+      "description": "This pathway highlights survival-versus-death decisions that often accompany stress or treatment response."
+    },
+    {
+      "title": "Angiogenesis",
+      "genes": [
+        "VEGFA",
+        "AKT1",
+        "MTOR",
+        "STAT3",
+        "TNF",
+        "EGFR"
+      ],
+      "description": "Vascular growth and remodeling signals can suggest tissue adaptation, hypoxia response, or tumor-associated angiogenesis."
+    }
+  ],
+  "kegg": [
+    {
+      "title": "PI3K-Akt signaling pathway",
+      "genes": [
+        "AKT1",
+        "MTOR",
+        "EGFR",
+        "PTEN",
+        "KRAS",
+        "MYC",
+        "CCND1"
+      ],
+      "description": "This is a central growth-survival axis often implicated in oncogenic signaling and therapy resistance."
+    },
+    {
+      "title": "MAPK signaling pathway",
+      "genes": [
+        "MAPK1",
+        "JUN",
+        "FOS",
+        "EGFR",
+        "KRAS",
+        "TNF",
+        "IL6"
+      ],
+      "description": "MAPK activity suggests rapid signal transduction from receptors to transcriptional response."
+    },
+    {
+      "title": "Cell cycle",
+      "genes": [
+        "CDK1",
+        "CCND1",
+        "TP53",
+        "MYC",
+        "BRCA1",
+        "PTEN"
+      ],
+      "description": "A cell-cycle hit indicates altered division control and may point to proliferation or arrest programs."
+    },
+    {
+      "title": "Apoptosis",
+      "genes": [
+        "CASP3",
+        "TP53",
+        "BCL2",
+        "TNF",
+        "FAS",
+        "JUN"
+      ],
+      "description": "Apoptosis enrichment suggests activation of programmed cell death or compensatory survival pathways."
+    }
+  ],
+  "reactome": [
+    {
+      "title": "Signal transduction",
+      "genes": [
+        "EGFR",
+        "AKT1",
+        "MAPK1",
+        "STAT3",
+        "MTOR",
+        "KRAS",
+        "TNF"
+      ],
+      "description": "Broad signal-transduction themes appear when receptor inputs converge on shared intracellular hubs."
+    },
+    {
+      "title": "DNA damage response",
+      "genes": [
+        "TP53",
+        "BRCA1",
+        "CDK1",
+        "PTEN",
+        "CASP3"
+      ],
+      "description": "This suggests genome surveillance and repair mechanisms, which can be prominent under stress or drug treatment."
+    },
+    {
+      "title": "Cytokine signaling",
+      "genes": [
+        "IL6",
+        "TNF",
+        "STAT3",
+        "CXCL8",
+        "SOCS3"
+      ],
+      "description": "Cytokine-linked pathways often indicate immune communication and transcriptional amplification loops."
+    },
+    {
+      "title": "Apoptosis and survival",
+      "genes": [
+        "BCL2",
+        "CASP3",
+        "TP53",
+        "AKT1",
+        "MTOR",
+        "TNF"
+      ],
+      "description": "This balance between death and survival is a hallmark of perturbed systems and many disease contexts."
+    }
+  ],
+  "string": [
+    {
+      "title": "Hub interaction cluster",
+      "genes": [
+        "TP53",
+        "AKT1",
+        "EGFR",
+        "STAT3",
+        "MYC",
+        "MAPK1"
+      ],
+      "description": "These proteins commonly act as hubs with high network connectivity, making them informative anchors in STRING-style views."
+    },
+    {
+      "title": "Inflammation network",
+      "genes": [
+        "IL6",
+        "TNF",
+        "CXCL8",
+        "JUN",
+        "FOS",
+        "STAT3"
+      ],
+      "description": "A connected inflammatory module suggests co-regulation and shared upstream triggers such as stress or immune cues."
+    },
+    {
+      "title": "Proliferation network",
+      "genes": [
+        "CDK1",
+        "CCND1",
+        "MYC",
+        "KRAS",
+        "EGFR",
+        "MTOR"
+      ],
+      "description": "A compact growth network often reveals the main drivers behind expansion, transformation, or regeneration."
+    },
+    {
+      "title": "Stress-response network",
+      "genes": [
+        "TP53",
+        "CASP3",
+        "BCL2",
+        "PTEN",
+        "JUN"
+      ],
+      "description": "Network evidence of stress response can help prioritize master regulators and their downstream effectors."
+    }
+  ]
+}
