@@ -1,107 +1,50 @@
-# AI-Powered Enrichment Analysis Platform
+# AI-Powered Enrichment Analysis Platform (Node.js)
 
-A beginner-friendly web app for gene list enrichment analysis with:
+A polished single-page prototype that accepts a gene list, normalizes common aliases, and runs enrichment analysis with:
 
-* GO
-* KEGG
-* Reactome
-* STRING
-* an interactive AI Pathway Copilot
+- GO Biological Process
+- KEGG
+- Reactome
+- STRING network visualization
 
-## What this app does
+## What is included
 
-You can:
+- Express backend
+- Responsive dark UI
+- Gene alias normalization for common NASH / NAFLD terms
+- External enrichment via g:Profiler
+- STRING network image URL
+- Downloadable JSON report
+- Curated fallback pathways so the app still works if the external API is temporarily unavailable
+- each pathway card includes buttons to open the source database page and a PubMed search for the selected pathway
 
-1. Paste a gene list or upload a text file
-2. Run enrichment analysis
-3. Switch between pathway tabs
-4. Click a pathway card to read the explanation
-5. Ask questions in the chat box beside the explanation
-
-## Before you start
-
-Install **Node.js LTS** from the official website:
-
-https://nodejs.org
-
-Use Node.js version 18 or newer.
-
-## How to install
-
-1. Unzip the project folder
-2. Open terminal inside the project folder
-3. Run:
+## Run locally
 
 ```bash
 npm install
-```
-
-## How to run
-
-```bash
 npm start
 ```
 
 Then open:
 
-```text
+```bash
 http://localhost:3000
 ```
 
-## How to use
-
-1. Paste your gene list
-2. Or click **Load Demo Genes**
-3. Choose the analysis mode
-4. Click **Run Analysis**
-5. Click any pathway card
-6. Use **Ask AI** to type a question about that pathway
-
-## Example questions
-
-* Why is this pathway important?
-* Is this relevant to specific disease?
-* Which genes are the main drivers?
-* What therapeutic targets should I look at?
-* Explain this in simple terms
-
-## Files
-
-* `server.js` — backend server
-* `public/index.html` — page layout
-* `public/styles.css` — design
-* `public/app.js` — frontend logic
-* `data/pathways.json` — fallback pathway definitions
-* `data/gene\_aliases.json` — common gene synonym mapping
-
 ## Notes
 
-* GO, KEGG, and Reactome are fetched through g:Profiler when available.
-* STRING network view is generated from STRING's image API.
-* If an external service fails, the app still shows curated fallback pathways.
+- The backend uses the g:Profiler API for GO, KEGG, and Reactome enrichment. g:Profiler documents a POST API at `/gprofiler/api/gost/profile/` and lists `GO:BP`, `KEGG`, and `REAC` as valid sources. citeturn631498view1turn159087view1
+- STRING provides a network image API at `https://version-12-0.string-db.org/api/image/network` and supports parameters such as `identifiers`, `species`, and `required_score`. citeturn631498view0
+- Reactome describes its Content Service as a REST API and provides pathway analysis tools through its analysis service. citeturn544491search1turn544491search2turn544491search4
 
-## Example gene list
+## Improve it next
 
-```text
-PNPLA3
-TM6SF2
-MBOAT7
-TNF
-IL6
-IL1B
-CCL2
-STAT3
-TGFB1
-COL1A1
-COL3A1
-ACTA2
-CTGF
-SPP1
-TIMP1
-MMP2
-CASP3
-TP53
-AKT1
-MTOR
-```
+- add real gene ID conversion with Ensembl / HGNC
+- add CSV export and PDF export
+- add a disease mode for NASH / NAFLD
+- add a live STRING embedded network instead of an image
 
+
+## Better small-gene handling
+
+The app now includes extra curated immune/B-cell pathways so short gene lists such as MS4A1, MS4A2, MS4A4A, and MS4A6A still return useful results.

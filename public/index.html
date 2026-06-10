@@ -81,7 +81,7 @@ CTGF</code>
               <input type="file" id="fileInput" accept=".txt,.csv,.tsv" />
               Choose file
             </label>
-            <div class="helper">TXT, CSV, or TSV files.</div>
+            <div class="helper">TXT, CSV, or TSV files work best for the prototype.</div>
           </div>
 
           <div class="field">
@@ -132,8 +132,9 @@ CTGF</code>
           <p>Top pathways are ranked by score. Click a card to update the explanation panel and STRING view.</p>
         </div>
         <div class="panel-body">
+          <div id="analysisNote" class="analysis-note empty-state" style="display:none"></div>
           <div id="resultsArea" class="results-grid">
-            <div class="empty-state">No results yet. Paste a gene list or click <b>Load Demo Genes</b>, then run the analysis.</div>
+            <div class="empty-state">No results yet. Paste a gene list or click <b>Load Demo NASH Genes</b>, then run the analysis.</div>
           </div>
         </div>
       </main>
@@ -150,36 +151,7 @@ CTGF</code>
               Run an analysis to see how the platform connects your gene list with pathway biology, network context, and likely mechanistic themes.
             </p>
             <div class="chip-row" id="expChips"></div>
-
-            <div class="copilot-divider"></div>
-
-            <div class="copilot-header">
-              <h4 class="explainer-title" style="margin-bottom: 6px;">Ask about this pathway</h4>
-              <p class="helper" style="margin: 0;">Type a doubt below. You can ask about genes, disease relevance, or why the pathway matters.</p>
-            </div>
-
-            <div id="selectedPathwayLabel" class="selected-pathway-label">No pathway selected yet.</div>
-
-            <div id="chatBox" class="chat-box" aria-live="polite"></div>
-
-            <div class="chat-quick-actions">
-              <button type="button" class="quick-prompt" data-prompt="Explain this pathway in simple terms.">Explain simply</button>
-              <button type="button" class="quick-prompt" data-prompt="Why is this pathway relevant to a disease?">Relevance</button>
-              <button type="button" class="quick-prompt" data-prompt="Which genes are the main drivers here?">Key genes</button>
-              <button type="button" class="quick-prompt" data-prompt="What therapeutic targets should I look at?">Drug targets</button>
-            </div>
-
-            <div class="chat-input-row">
-              <textarea
-                id="pathwayQuestion"
-                placeholder="Ask a doubt about this pathway...
-Example:
-Why is STAT3 important here?
-Is this pathway relevant to NASH?
-What genes are driving the signal?"
-              ></textarea>
-              <button id="askPathwayBtn" type="button">Ask AI</button>
-            </div>
+            <div id="sourceLinks" class="source-links"></div>
           </div>
         </section>
 

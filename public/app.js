@@ -1,3 +1,5 @@
+const NL = String.fromCharCode(10);
+
 const demoGenes = [
   'PNPLA3', 'TM6SF2', 'MBOAT7', 'TNF', 'IL6', 'IL1B', 'CCL2', 'STAT3',
   'TGFB1', 'COL1A1', 'COL3A1', 'ACTA2', 'CTGF', 'SPP1', 'TIMP1', 'MMP2',
@@ -7,10 +9,7 @@ const demoGenes = [
 const state = {
   mode: 'combined',
   lastPayload: null,
-  activeResults: [],
-  activeResult: null,
-  selectedSignature: '',
-  isSendingChat: false
+  activeResults: []
 };
 
 const geneInput = document.getElementById('geneInput');
@@ -23,17 +22,14 @@ const resultsArea = document.getElementById('resultsArea');
 const expTitle = document.getElementById('expTitle');
 const expText = document.getElementById('expText');
 const expChips = document.getElementById('expChips');
+const sourceLinks = document.getElementById('sourceLinks');
 const chart = document.getElementById('chart');
 const networkFrame = document.getElementById('networkFrame');
 const normalizationBox = document.getElementById('normalizationBox');
 const geneCount = document.getElementById('geneCount');
 const resultCount = document.getElementById('resultCount');
 const aliasCount = document.getElementById('aliasCount');
-const chatBox = document.getElementById('chatBox');
-const pathwayQuestion = document.getElementById('pathwayQuestion');
-const askPathwayBtn = document.getElementById('askPathwayBtn');
-const selectedPathwayLabel = document.getElementById('selectedPathwayLabel');
-const quickPrompts = [...document.querySelectorAll('.quick-prompt')];
+const analysisNote = document.getElementById('analysisNote');
 
 function parseLocalGenes(text) {
   return [...new Set(
@@ -58,19 +54,17 @@ function getModeResults(payload, mode) {
 }
 
 function updateResultCount(mode, results) {
+  const label = mode === 'combined' ? 'enriched pathways shown' : `${mode.toUpperCase()} pathways shown`;
   resultCount.textContent = String(results.length);
   const metric = document.querySelector('#resultCount')?.parentElement?.querySelector('.l');
-  if (metric) {
-    metric.textContent = mode === 'combined'
-      ? 'enriched pathways shown'
-      : `${mode.toUpperCase()} pathways shown`;
-  }
+  if (metric) metric.textContent = label;
 }
 
 function renderLoading() {
   resultsArea.innerHTML = '<div class="empty-state">Running analysis…</div>';
   chart.innerHTML = '<div class="empty-state" style="width:100%">Waiting for results…</div>';
   networkFrame.innerHTML = '<div class="empty-state">STRING network is loading…</div>';
+  if (analysisNote) analysisNote.style.display = 'none';
 }
 
 function renderNormalization(input) {
@@ -91,7 +85,6 @@ function renderNormalization(input) {
   if (input.normalized.length > 12) {
     lines.push(`<div class="helper">Showing first 12 normalized genes. ${input.normalized.length - 12} more hidden.</div>`);
   }
-
   if (input.unmatched.length) {
     lines.push('<div style="margin-top:12px" class="mini-list"><strong>Unmatched entries</strong></div>');
     lines.push('<div class="chip-row">');
@@ -100,9 +93,41 @@ function renderNormalization(input) {
     });
     lines.push('</div>');
   }
-
   normalizationBox.innerHTML = lines.join('');
   aliasCount.textContent = String(input.normalized.filter(x => x.alias).length);
+}
+
+function renderNote(payload) {
+  if (!analysisNote || !payload) return;
+  const warnings = payload.diagnostics?.warnings || [];
+  const note = payload.note || '';
+  const chunks = [];
+  if (note) chunks.push(`<div><strong>Analysis note:</strong> ${escapeHtml(note)}</div>`);
+  if (warnings.length) chunks.push(`<div style="margin-top:6px"><strong>Warnings:</strong> ${warnings.map(escapeHtml).join(' · ')}</div>`);
+  if (!chunks.length) {
+    analysisNote.style.display = 'none';
+    analysisNote.innerHTML = '';
+    return;
+  }
+  analysisNote.innerHTML = chunks.join('');
+  analysisNote.style.display = 'block';
+}
+
+function renderLinks(result) {
+  if (!sourceLinks || !result) return;
+  const links = result.links || {};
+  const items = [];
+
+  if (links.database) {
+    items.push(`<a class="link-btn" href="${escapeHtmlAttr(links.database)}" target="_blank" rel="noopener noreferrer">${escapeHtml(links.databaseLabel || 'Open source')}</a>`);
+  }
+  if (links.pubmed) {
+    items.push(`<a class="link-btn secondary" href="${escapeHtmlAttr(links.pubmed)}" target="_blank" rel="noopener noreferrer">${escapeHtml(links.pubmedLabel || 'PubMed')}</a>`);
+  }
+
+  sourceLinks.innerHTML = items.length
+    ? items.join('')
+    : '<div class="helper">No external link available for this result.</div>';
 }
 
 function renderResults(results) {
@@ -117,7 +142,7 @@ function renderResults(results) {
   resultCount.textContent = String(results.length);
 
   resultsArea.innerHTML = results.map((r, i) => `
-    <article class="card" data-index="${i}" tabindex="0" role="button" aria-label="Select ${escapeHtml(r.title)}">
+    <article class="card" data-index="${i}" tabindex="0" role="button">
       <div class="card-top">
         <span class="tag">${escapeHtml((r.source || r.mode || 'RESULT').toUpperCase())}</span>
         <span class="score">${r.score}%</span>
@@ -125,9 +150,13 @@ function renderResults(results) {
       <h4>${escapeHtml(r.title)}</h4>
       <p>${escapeHtml(r.description || '')}</p>
       <div class="mini">
-        <span>${r.overlap?.length || 0} shared genes</span>
+        <span>${(r.overlap?.length || 0)} shared genes</span>
         <span>${r.pValue ? `p ${formatP(r.pValue)}` : `FDR ${r.fdr || 'n/a'}`}</span>
-        <span>${r.mode ? r.mode.toUpperCase() : 'combined'}</span>
+        <span>${escapeHtml(r.confidence ? `${r.confidence} confidence` : (r.mode ? r.mode.toUpperCase() : 'combined'))}</span>
+      </div>
+      <div class="card-actions">
+        <a class="link-btn" href="${escapeHtmlAttr((r.links && r.links.database) || '#')}" target="_blank" rel="noopener noreferrer" data-stop="true">${escapeHtml((r.links && r.links.databaseLabel) || 'Open source')}</a>
+        <a class="link-btn secondary" href="${escapeHtmlAttr((r.links && r.links.pubmed) || '#')}" target="_blank" rel="noopener noreferrer" data-stop="true">${escapeHtml((r.links && r.links.pubmedLabel) || 'PubMed')}</a>
       </div>
     </article>
   `).join('');
@@ -138,11 +167,14 @@ function renderResults(results) {
       cards.forEach(c => c.style.outline = 'none');
       card.style.outline = '2px solid rgba(110,231,255,0.55)';
       card.style.outlineOffset = '2px';
-      selectResult(results[idx], { resetChat: true });
+      updateExplanation(results[idx]);
     };
     card.addEventListener('click', activate);
     card.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') activate();
+    });
+    [...card.querySelectorAll('[data-stop="true"]')].forEach(link => {
+      link.addEventListener('click', (e) => e.stopPropagation());
     });
   });
 
@@ -151,29 +183,17 @@ function renderResults(results) {
 
 function updateExplanation(result) {
   if (!result) return;
-
   expTitle.textContent = result.title;
   expText.textContent = result.explanation || result.description || '';
-
   const chips = [
     `Score: ${result.score}%`,
     `Genes: ${(result.overlap || []).join(', ') || 'none'}`,
     result.pValue ? `p: ${formatP(result.pValue)}` : (result.fdr ? `FDR: ${result.fdr}` : ''),
-    result.termId ? `Term: ${result.termId}` : ''
+    result.termId ? `Term: ${result.termId}` : '',
+    result.confidence ? `Confidence: ${result.confidence}` : ''
   ].filter(Boolean);
-
   expChips.innerHTML = chips.map(t => `<span class="chip">${escapeHtml(t)}</span>`).join('');
-  selectedPathwayLabel.textContent = `Discussing: ${result.title} • ${result.mode ? result.mode.toUpperCase() : 'COMBINED'}`;
-}
-
-function selectResult(result, { resetChat = false } = {}) {
-  if (!result) return;
-  state.activeResult = result;
-  updateExplanation(result);
-
-  if (resetChat) {
-    resetChatPanel(result);
-  }
+  renderLinks(result);
 }
 
 function updateChart(results) {
@@ -182,7 +202,6 @@ function updateChart(results) {
     chart.innerHTML = '<div class="empty-state" style="width:100%">No chart data yet.</div>';
     return;
   }
-
   const max = Math.max(...top.map(r => r.score || 1), 1);
   chart.innerHTML = top.map(r => `
     <div class="bar-wrap" title="${escapeHtml(r.title)}: ${r.score}%">
@@ -193,66 +212,43 @@ function updateChart(results) {
   `).join('');
 }
 
-function updateNetwork(url) {
+function renderNetwork(url) {
   if (!url) {
     networkFrame.innerHTML = '<div class="empty-state">STRING network will appear here after analysis.</div>';
     return;
   }
-
-  const safeUrl = url.replace(/"/g, '&quot;');
+  const safeUrl = escapeHtmlAttr(url);
   networkFrame.innerHTML = `
     <img src="${safeUrl}" alt="STRING network image" />
     <div class="helper" style="margin-top:10px">
-      If the image does not load, open the network in STRING directly or verify that the listed genes are valid protein symbols.
+      If the image does not load, open the STRING source link or verify that the listed genes are valid protein symbols.
     </div>
   `;
 }
 
 function renderMode() {
   if (!state.lastPayload) return;
-
   const results = getModeResults(state.lastPayload, state.mode);
   state.activeResults = results;
   renderResults(results);
   updateChart(results);
+  renderNote(state.lastPayload);
 
   if (state.mode === 'string') {
-    updateNetwork(state.lastPayload.stringNetworkUrl);
+    renderNetwork(state.lastPayload.stringNetworkUrl);
   } else {
     networkFrame.innerHTML = '<div class="empty-state">STRING view is available in the STRING tab. Switch to STRING to see the network image.</div>';
   }
 
   if (results.length && results[0]) {
-    selectResult(results[0], { resetChat: !state.activeResult || state.activeResult.title !== results[0].title || state.activeResult.mode !== results[0].mode });
+    updateExplanation(results[0]);
   } else {
     expTitle.textContent = state.mode === 'combined' ? 'No strong enrichment found' : `No ${state.mode.toUpperCase()} enrichment found`;
-    expText.textContent = 'Try a larger or more focused NASH gene list, or lower the filtering threshold.';
+    expText.textContent = 'Try a larger or more focused gene list, verify symbols, or lower the filtering threshold.';
     expChips.innerHTML = '';
-    selectedPathwayLabel.textContent = 'No pathway selected yet.';
-    if (!chatBox.children.length) {
-      resetChatPanel(null);
-    }
+    sourceLinks.innerHTML = '';
   }
-
   updateResultCount(state.mode, results);
-}
-
-function resetChatPanel(result) {
-  chatBox.innerHTML = '';
-  if (result) {
-    appendChatMessage('assistant', `You are now discussing ${result.title}. Ask me about the genes, disease relevance, biology, or next steps.`);
-  } else {
-    appendChatMessage('assistant', 'Ask me anything about the selected pathway. You can ask why the genes are linked, whether the pathway is relevant to NASH, which genes are driving the signal, or what drug targets might be interesting.');
-  }
-}
-
-function appendChatMessage(role, text) {
-  const msg = document.createElement('div');
-  msg.className = `chat-msg ${role}`;
-  msg.textContent = text;
-  chatBox.appendChild(msg);
-  chatBox.scrollTop = chatBox.scrollHeight;
-  return msg;
 }
 
 function formatP(p) {
@@ -269,6 +265,10 @@ function escapeHtml(str) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
+}
+
+function escapeHtmlAttr(str) {
+  return escapeHtml(str).replaceAll('`', '&#96;');
 }
 
 async function runAnalysis() {
@@ -301,65 +301,23 @@ async function runAnalysis() {
     }
 
     state.lastPayload = data;
-    state.activeResult = null;
     geneCount.textContent = String(data.summary?.totalGenes || 0);
     renderNormalization(data.input);
+    renderNote(data);
     renderMode();
   } catch (err) {
     resultsArea.innerHTML = `<div class="empty-state">Error: ${escapeHtml(err.message)}</div>`;
     chart.innerHTML = '<div class="empty-state" style="width:100%">No chart data.</div>';
     networkFrame.innerHTML = '<div class="empty-state">STRING network could not be loaded.</div>';
+    if (analysisNote) analysisNote.style.display = 'none';
   } finally {
     runBtn.disabled = false;
     runBtn.textContent = 'Run Analysis';
   }
 }
 
-async function sendPathwayQuestion(questionText) {
-  const question = String(questionText || pathwayQuestion.value || '').trim();
-  if (!question) return;
-
-  if (!state.activeResult) {
-    appendChatMessage('assistant', 'Please run the analysis first and click a pathway card so I know which pathway you want to discuss.');
-    return;
-  }
-
-  appendChatMessage('user', question);
-  pathwayQuestion.value = '';
-
-  askPathwayBtn.disabled = true;
-  askPathwayBtn.textContent = 'Thinking...';
-  state.isSendingChat = true;
-
-  try {
-    const response = await fetch('/api/pathway-chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        question,
-        pathway: state.activeResult,
-        genes: state.lastPayload?.input?.genes || [],
-        mode: state.mode
-      })
-    });
-
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error || 'Unable to answer the question.');
-    }
-
-    appendChatMessage('assistant', data.answer);
-  } catch (err) {
-    appendChatMessage('assistant', `Sorry, I could not answer that right now. ${err.message}`);
-  } finally {
-    askPathwayBtn.disabled = false;
-    askPathwayBtn.textContent = 'Ask AI';
-    state.isSendingChat = false;
-  }
-}
-
 demoBtn.addEventListener('click', () => {
-  geneInput.value = demoGenes.join('\n');
+  geneInput.value = demoGenes.join(NL);
   geneCount.textContent = String(parseLocalGenes(geneInput.value).length);
 });
 
@@ -367,23 +325,23 @@ clearBtn.addEventListener('click', () => {
   geneInput.value = '';
   fileInput.value = '';
   state.lastPayload = null;
-  state.activeResults = [];
-  state.activeResult = null;
-  state.selectedSignature = '';
   geneCount.textContent = '0';
   resultCount.textContent = '0';
   const metric = document.querySelector('#resultCount')?.parentElement?.querySelector('.l');
   if (metric) metric.textContent = 'enriched pathways shown';
   aliasCount.textContent = '0';
-  resultsArea.innerHTML = '<div class="empty-state">No results yet. Paste genes or load the demo set, then click <b>Run Analysis</b>.</div>';
+  resultsArea.innerHTML = '<div class="empty-state">No results yet. Paste genes or load the demo set, then click <b>Load Demo NASH Genes</b>.</div>';
   chart.innerHTML = '<div class="empty-state" style="width:100%">No chart data yet.</div>';
   networkFrame.innerHTML = '<div class="empty-state">STRING network will appear here after analysis.</div>';
   normalizationBox.innerHTML = '<div class="empty-state">No gene list loaded yet.</div>';
   expTitle.textContent = 'Waiting for analysis';
   expText.textContent = 'Run an analysis to see how the platform connects your gene list with pathway biology, network context, and likely mechanistic themes.';
   expChips.innerHTML = '';
-  selectedPathwayLabel.textContent = 'No pathway selected yet.';
-  resetChatPanel(null);
+  sourceLinks.innerHTML = '';
+  if (analysisNote) {
+    analysisNote.style.display = 'none';
+    analysisNote.innerHTML = '';
+  }
 });
 
 downloadBtn.addEventListener('click', () => {
@@ -424,26 +382,9 @@ document.getElementById('modeSwitches').addEventListener('click', (e) => {
   renderMode();
 });
 
-askPathwayBtn.addEventListener('click', () => sendPathwayQuestion());
-pathwayQuestion.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-    e.preventDefault();
-    sendPathwayQuestion();
-  }
-});
-
-quickPrompts.forEach(btn => {
-  btn.addEventListener('click', () => {
-    const prompt = btn.dataset.prompt || '';
-    pathwayQuestion.value = prompt;
-    pathwayQuestion.focus();
-  });
-});
-
-geneInput.value = demoGenes.join('\n');
+geneInput.value = demoGenes.join(NL);
 geneCount.textContent = String(demoGenes.length);
 state.mode = 'combined';
 setActiveSwitch(state.mode);
 renderNormalization(null);
-resetChatPanel(null);
 runAnalysis();

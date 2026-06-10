@@ -22,8 +22,33 @@ function parseGeneText(text = '') {
   )];
 }
 
+function levenshtein(a, b) {
+  const m = a.length;
+  const n = b.length;
+  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+    }
+  }
+  return dp[m][n];
+}
+
+function similarity(a, b) {
+  if (!a || !b) return 0;
+  if (a === b) return 1;
+  return 1 - levenshtein(a, b) / Math.max(a.length, b.length);
+}
+
 function normalizeToken(token) {
-  const t = token.toUpperCase().trim();
+  const t = String(token || '').toUpperCase().trim();
+  if (!t) return { symbol: null, matchedAs: null, alias: false };
 
   if (aliasMap[t]) {
     return { symbol: aliasMap[t], matchedAs: t, alias: true };
@@ -37,48 +62,20 @@ function normalizeToken(token) {
   }
 
   const candidates = Object.keys(aliasMap)
-    .map(k => ({
-      key: k,
-      score: similarity(compact, k.replace(/[\s\-_.]/g, ''))
-    }))
+    .map(k => ({ key: k, score: similarity(compact, k.replace(/[\s\-_.]/g, '')) }))
     .sort((a, b) => b.score - a.score);
 
   if (candidates.length && candidates[0].score >= 0.86) {
-    return { symbol: aliasMap[candidates[0].key], matchedAs: candidates[0].key, alias: true };
+    const best = candidates[0];
+    return { symbol: aliasMap[best.key], matchedAs: best.key, alias: true };
   }
 
-  if (/^[A-Z0-9][A-Z0-9\-_.]{1,12}$/.test(t)) {
+  // Accept gene-like tokens directly so valid symbols such as MS4A1 still pass through.
+  if (/^[A-Z0-9][A-Z0-9\-_.]{1,18}$/.test(t)) {
     return { symbol: t.replace(/[_.]/g, ''), matchedAs: t, alias: false };
   }
 
   return { symbol: null, matchedAs: null, alias: false };
-}
-
-function similarity(a, b) {
-  if (!a || !b) return 0;
-  if (a === b) return 1;
-  const dist = levenshtein(a, b);
-  return 1 - dist / Math.max(a.length, b.length);
-}
-
-function levenshtein(a, b) {
-  const m = a.length;
-  const n = b.length;
-  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
-
-  for (let i = 0; i <= m; i++) dp[i][0] = i;
-  for (let j = 0; j <= n; j++) dp[0][j] = j;
-
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      dp[i][j] = Math.min(
-        dp[i - 1][j] + 1,
-        dp[i][j - 1] + 1,
-        dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
-      );
-    }
-  }
-  return dp[m][n];
 }
 
 function normalizeGenes(text) {
@@ -104,14 +101,34 @@ function normalizeGenes(text) {
     }
   }
 
-  return { rawTokens, normalized, genes: normalized.map(x => x.symbol), unmatched };
+  return {
+    rawTokens,
+    normalized,
+    genes: normalized.map(x => x.symbol),
+    unmatched
+  };
 }
 
 function overlapScore(inputGenes, pathwayGenes) {
   const set = new Set(inputGenes);
   const overlap = pathwayGenes.filter(g => set.has(g));
-  const score = Math.round((overlap.length / Math.max(pathwayGenes.length, 1)) * 100);
-  return { score, overlap };
+
+  if (!overlap.length) {
+    return { overlap, score: 0 };
+  }
+
+  const coverage = overlap.length / Math.max(inputGenes.length, 1);
+  const pathwayCoverage = overlap.length / Math.max(pathwayGenes.length, 1);
+  const score = Math.round((coverage * 55 + pathwayCoverage * 45) * 100) / 100;
+
+  return { overlap, score: Math.max(1, Math.min(Math.round(score), 99)) };
+}
+
+function confidenceLabel(score) {
+  if (score >= 70) return 'high';
+  if (score >= 35) return 'moderate';
+  if (score > 0) return 'low';
+  return 'none';
 }
 
 function explainPathway(pathway, overlap, score, tone = 'balanced') {
@@ -123,44 +140,100 @@ function explainPathway(pathway, overlap, score, tone = 'balanced') {
   }
 
   if (tone === 'deep') {
-    return base + pathway.description + ` This pattern suggests the input captures a coordinated biological program rather than an isolated event. Score: ${score}%.`;
+    return base + `${pathway.description} This pattern suggests a coordinated biological program rather than an isolated event. Score: ${score}%.`;
   }
 
-  return base + pathway.description + ` Score: ${score}%.`;
+  return base + `${pathway.description} Score: ${score}%.`;
 }
 
 function organismToCode(organism) {
   switch (organism) {
-    case 'mouse': return 'mmusculus';
-    case 'rat': return 'rnorvegicus';
-    default: return 'hsapiens';
+    case 'mouse':
+      return 'mmusculus';
+    case 'rat':
+      return 'rnorvegicus';
+    default:
+      return 'hsapiens';
   }
 }
 
 function organismToTaxon(organism) {
   switch (organism) {
-    case 'mouse': return 10090;
-    case 'rat': return 10116;
-    default: return 9606;
+    case 'mouse':
+      return 10090;
+    case 'rat':
+      return 10116;
+    default:
+      return 9606;
   }
 }
 
-function pathwayBucket(mode, genes) {
-  const rows = curatedPathways[mode] || [];
-  const out = rows.map(p => {
-    const { score, overlap } = overlapScore(genes, p.genes);
-    return {
-      mode,
-      title: p.title,
-      description: p.description,
-      score,
-      fdr: Math.max(0.001, (100 - score) / 1000).toFixed(4),
-      overlap,
-      totalGenes: p.genes.length,
-      source: mode.toUpperCase()
-    };
-  }).sort((a, b) => b.score - a.score);
-  return out.filter(x => x.score > 0);
+function buildStringUrl(genes, organism) {
+  const identifiers = encodeURIComponent(genes.join('%0d'));
+  const species = organismToTaxon(organism);
+  const requiredScore = 700;
+  return `https://version-12-0.string-db.org/api/image/network?identifiers=${identifiers}&species=${species}&required_score=${requiredScore}&network_flavor=confidence&add_white_nodes=2&caller_identity=nash-enrichment-app`;
+}
+
+function extractKeggId(termId) {
+  const value = String(termId || '').trim();
+  const match = value.match(/(?:KEGG:)?([a-z]{2,4}\d{5})/i);
+  return match ? match[1] : null;
+}
+
+function extractReactomeId(termId) {
+  const value = String(termId || '').trim();
+  const match = value.match(/(R-(?:HSA|MMU|RNO)-\d+)/i);
+  return match ? match[1].toUpperCase() : null;
+}
+
+function buildResultLinks(item, genes, organism, stringNetworkUrl) {
+  const mode = String(item.mode || '').toLowerCase();
+  const source = String(item.source || '').toUpperCase();
+  const title = item.title || 'pathway';
+  const termId = item.termId || '';
+
+  const pubmed = `https://pubmed.ncbi.nlm.nih.gov/?term=${encodeURIComponent(title)}`;
+  let database = pubmed;
+  let databaseLabel = 'Search PubMed';
+
+  if (mode === 'string' || source.includes('STRING')) {
+    database = stringNetworkUrl || `https://string-db.org/cgi/input?species=${organismToTaxon(organism)}&input_query=${encodeURIComponent(genes.join('%0d'))}`;
+    databaseLabel = 'Open STRING network';
+  } else if (mode === 'go' || source.includes('GO')) {
+    if (/^GO:\d{7}$/i.test(termId)) {
+      database = `https://www.ebi.ac.uk/QuickGO/term/${encodeURIComponent(termId)}`;
+      databaseLabel = 'Open GO term';
+    } else {
+      database = `https://www.ebi.ac.uk/QuickGO/search?query=${encodeURIComponent(title)}`;
+      databaseLabel = 'Search GO';
+    }
+  } else if (mode === 'kegg' || source.includes('KEGG')) {
+    const id = extractKeggId(termId);
+    if (id) {
+      database = `https://www.kegg.jp/pathway/${id}`;
+      databaseLabel = 'Open KEGG pathway';
+    } else {
+      database = `https://www.kegg.jp/dbget-bin/www_bfind_sub?mode=bfind&max_hit=1000&dbkey=pathway&keywords=${encodeURIComponent(title)}`;
+      databaseLabel = 'Search KEGG';
+    }
+  } else if (mode === 'reactome' || source.includes('REAC')) {
+    const id = extractReactomeId(termId);
+    if (id) {
+      database = `https://reactome.org/content/detail/${id}`;
+      databaseLabel = 'Open Reactome';
+    } else {
+      database = `https://reactome.org/content/query?q=${encodeURIComponent(title)}`;
+      databaseLabel = 'Search Reactome';
+    }
+  }
+
+  return {
+    database,
+    databaseLabel,
+    pubmed,
+    pubmedLabel: 'Open PubMed'
+  };
 }
 
 async function fetchGProfiler(genes, organismCode, sources, fdr) {
@@ -181,7 +254,7 @@ async function fetchGProfiler(genes, organismCode, sources, fdr) {
     headers: {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      'User-Agent': 'NASH-Enrichment-Prototype/1.0'
+      'User-Agent': 'AI-Enrichment-Platform/1.0'
     },
     body: JSON.stringify(payload)
   });
@@ -191,101 +264,108 @@ async function fetchGProfiler(genes, organismCode, sources, fdr) {
   }
 
   const data = await res.json();
-  const rows = Array.isArray(data.result) ? data.result : [];
+  return Array.isArray(data.result) ? data.result : [];
+}
 
-  return rows.map(row => ({
-    source: row.source,
+function mapApiRow(row, mode, aiTone) {
+  const source = row.source === 'GO:BP' ? 'go' : row.source === 'KEGG' ? 'kegg' : row.source === 'REAC' ? 'reactome' : null;
+  if (source !== mode) return null;
+
+  const overlap = Array.isArray(row.intersections)
+    ? row.intersections.map(arr => Array.isArray(arr) ? arr[0] : null).filter(Boolean)
+    : [];
+
+  const pValue = Number(row.p_value);
+  const score = Number.isFinite(pValue)
+    ? Math.max(1, Math.min(99, Math.round((1 - Math.min(pValue, 1)) * 100)))
+    : 0;
+
+  return {
+    mode,
     title: row.name,
     description: row.description || row.name,
-    termId: row.native,
-    score: row.p_value ? Math.max(1, Math.min(99, Math.round((1 - Math.min(row.p_value, 1)) * 100))) : 0,
-    pValue: row.p_value,
-    intersectionSize: row.intersection_size,
-    termSize: row.term_size,
-    querySize: row.query_size,
-    overlap: Array.isArray(row.intersections)
-      ? row.intersections
-          .map(arr => Array.isArray(arr) ? arr[0] : null)
-          .filter(Boolean)
-      : [],
+    termId: row.native || null,
+    score,
+    confidence: confidenceLabel(score),
+    pValue,
+    fdr: Number.isFinite(pValue) ? pValue.toExponential(2) : 'n/a',
+    overlap,
+    totalGenes: row.term_size || 0,
+    querySize: row.query_size || 0,
+    source: row.source,
+    explanation: explainPathway({ title: row.name, description: row.description || row.name }, overlap, score, aiTone),
     raw: row
-  })).sort((a, b) => (a.pValue || 1) - (b.pValue || 1));
+  };
 }
 
-function buildStringUrl(genes, organism) {
-  const identifiers = encodeURIComponent(genes.join('%0d'));
-  const species = organismToTaxon(organism);
-  const requiredScore = 700;
-  return `https://version-12-0.string-db.org/api/image/network?identifiers=${identifiers}&species=${species}&required_score=${requiredScore}&network_flavor=confidence&add_white_nodes=2&caller_identity=nash-enrichment-app`;
+function buildCuratedResults(mode, genes, aiTone) {
+  const rows = curatedPathways[mode] || [];
+  return rows
+    .map(p => {
+      const { overlap, score } = overlapScore(genes, p.genes);
+      return {
+        mode,
+        title: p.title,
+        description: p.description,
+        termId: `CURATED:${mode.toUpperCase()}:${p.title}`,
+        score,
+        confidence: confidenceLabel(score),
+        pValue: null,
+        fdr: score ? (Math.max(0.001, (100 - score) / 1000)).toFixed(4) : 'n/a',
+        overlap,
+        totalGenes: p.genes.length,
+        querySize: genes.length,
+        source: `CURATED_${mode.toUpperCase()}`,
+        explanation: explainPathway(
+          { title: p.title, description: p.description },
+          overlap,
+          score,
+          aiTone
+        )
+      };
+    })
+    .filter(x => x.score > 0)
+    .sort((a, b) => b.score - a.score);
 }
 
-function isNashRelatedQuestion(question = '') {
-  const q = String(question).toLowerCase();
-  return /(nash|nafld|fatty liver|steatohepatitis|steatosis|fibrosis|lipid|inflammation)/.test(q);
+function buildSyntheticNoHit(mode, genes, aiTone) {
+  const title = `${mode.toUpperCase()} search did not find a direct hit`;
+  const description = `No direct ${mode.toUpperCase()} enrichment matched the current gene set. This is not unusual for small or very specific inputs. Try a larger list, valid symbols, or another species.`;
+  return {
+    mode,
+    title,
+    description,
+    termId: null,
+    score: 0,
+    confidence: 'none',
+    pValue: null,
+    fdr: 'n/a',
+    overlap: [],
+    totalGenes: 0,
+    querySize: genes.length,
+    source: 'SYSTEM',
+    explanation: explainPathway(
+      { title, description },
+      [],
+      0,
+      aiTone
+    )
+  };
 }
 
-function pickHubGenes(overlap = [], allGenes = []) {
-  const priority = ['TP53', 'STAT3', 'AKT1', 'MTOR', 'TNF', 'IL6', 'EGFR', 'MYC', 'TGFB1', 'CCL2', 'COL1A1', 'CASP3', 'PTEN', 'MAPK1'];
-  const pool = new Set([...overlap, ...allGenes]);
-  return priority.filter(g => pool.has(g)).slice(0, 5);
-}
+function mergeResults(primary, fallback, limit = 8) {
+  const merged = [];
+  const seen = new Set();
 
-function answerPathwayQuestion({ pathway = {}, question = '', genes = [], mode = 'combined' }) {
-  const q = String(question).trim();
-  const lower = q.toLowerCase();
-  const title = pathway.title || 'this pathway';
-  const description = pathway.description || '';
-  const overlap = Array.isArray(pathway.overlap) ? pathway.overlap : [];
-  const queryGenes = Array.isArray(genes) ? genes : [];
+  for (const item of [...primary, ...fallback]) {
+    const key = `${item.mode}::${item.termId || item.title}`.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(item);
+  }
 
-  const askSimple = /(simple|plain language|layman|easy|in simple terms)/.test(lower);
-  const askWhy = /(why|how|mechanism|mechanistically|because)/.test(lower);
-  const askGenes = /(which genes|what genes|gene(s)? (drive|support|are important)|key genes|drivers?)/.test(lower);
-  const askDrug = /(drug|therapeutic|target|inhibitor|treatment|therapy|medication)/.test(lower);
-  const askEvidence = /(literature|paper|reference|citation|evidence|study)/.test(lower);
-  const askNash = isNashRelatedQuestion(lower);
-  const askCompare = /(compare|different|specific|unique|distinct)/.test(lower);
-
-  const opening = `We are discussing ${title}${mode && mode !== 'combined' ? ` from the ${mode.toUpperCase()} tab` : ''}.`;
-  const overlapText = overlap.length
-    ? `The strongest overlap genes are ${overlap.join(', ')}.`
-    : `I do not see a strong direct overlap, so this may be a weaker but still biologically interesting signal.`;
-
-  const context = askNash
-    ? `For NASH / NAFLD, this matters most when the pathway reflects inflammation, fibrosis, lipid stress, apoptosis, or metabolic remodelling.`
-    : `In general, the pathway becomes more meaningful when several input genes converge on the same biological process.`;
-
-  const hubGenes = pickHubGenes(overlap, queryGenes);
-  const hubText = hubGenes.length
-    ? `Likely hub genes to watch in this context are ${hubGenes.join(', ')}.`
-    : `The most informative genes will usually be the overlapping genes shown in the result card.`;
-
-  const evidenceText = askEvidence
-    ? `Good follow-up searches would be: "${title}" + pathway, "${title}" + disease context, and "${(overlap[0] || title)}" + signaling.`
-    : '';
-
-  const drugText = askDrug
-    ? `For target discovery, treat this as a hypothesis-generating view only. Candidate targets often include hub-like genes such as ${hubGenes.length ? hubGenes.join(', ') : 'the strongest overlapping genes'}.`
-    : '';
-
-  const compareText = askCompare
-    ? `If you compare tabs, GO usually explains biological processes, KEGG shows canonical signaling pathways, Reactome gives reaction-level detail, and STRING highlights interaction structure.`
-    : '';
-
-  const simpleText = askSimple
-    ? `In simple terms, the pathway is a biological route that helps cells decide how to respond to stress, grow, repair, communicate, or die.`
-    : '';
-
-  const whyText = askWhy ? description : '';
-  const geneText = askGenes
-    ? `The genes most directly responsible for this hit are ${overlap.length ? overlap.join(', ') : 'the result-set genes that matched the pathway definition'}.`
-    : '';
-
-  const closing = `If you want, ask me about a specific gene, disease relevance, drug targets, or how this pathway compares with the GO / KEGG / Reactome / STRING views.`;
-
-  return [opening, overlapText, context, simpleText, whyText, geneText, hubText, drugText, evidenceText, compareText, closing]
-    .filter(Boolean)
-    .join(' ');
+  merged.sort((a, b) => (b.score || 0) - (a.score || 0));
+  return merged.slice(0, limit);
 }
 
 app.get('/api/meta', (req, res) => {
@@ -301,7 +381,14 @@ app.get('/api/meta', (req, res) => {
 
 app.post('/api/analyze', async (req, res) => {
   try {
-    const { genesText = '', organism = 'human', mode = 'combined', fdr = 0.05, aiTone = 'balanced' } = req.body || {};
+    const {
+      genesText = '',
+      organism = 'human',
+      mode = 'combined',
+      fdr = 0.05,
+      aiTone = 'balanced'
+    } = req.body || {};
+
     const normalizedInput = normalizeGenes(genesText);
     const genes = normalizedInput.genes;
 
@@ -311,6 +398,11 @@ app.post('/api/analyze', async (req, res) => {
 
     const organismCode = organismToCode(organism);
     const stringNetworkUrl = buildStringUrl(genes, organism);
+
+    const decorateResult = (item) => ({
+      ...item,
+      links: buildResultLinks(item, genes, organism, stringNetworkUrl)
+    });
 
     let gprofilerRows = [];
     try {
@@ -327,47 +419,56 @@ app.post('/api/analyze', async (req, res) => {
     };
 
     for (const row of gprofilerRows) {
-      const source = row.source === 'GO:BP' ? 'go' : row.source === 'KEGG' ? 'kegg' : row.source === 'REAC' ? 'reactome' : null;
-      if (!source) continue;
-      bySource[source].push({
-        mode: source,
-        title: row.title,
-        description: row.description,
-        termId: row.termId,
-        score: row.score,
-        pValue: row.pValue,
-        fdr: row.pValue ? Number(row.pValue).toExponential(2) : 'n/a',
-        overlap: row.overlap,
-        totalGenes: row.termSize,
-        querySize: row.querySize,
-        source: row.source,
-        raw: row.raw,
-        explanation: explainPathway({ title: row.title, description: row.description }, row.overlap, row.score, aiTone)
-      });
+      const mapped = mapApiRow(row, row.source === 'GO:BP' ? 'go' : row.source === 'KEGG' ? 'kegg' : row.source === 'REAC' ? 'reactome' : null, aiTone);
+      if (!mapped) continue;
+      bySource[mapped.mode].push(mapped);
     }
 
-    bySource.string = pathwayBucket('string', genes).map(x => ({
-      ...x,
-      explanation: explainPathway(
-        { title: x.title, description: x.description },
-        x.overlap,
-        x.score,
-        aiTone
-      )
-    }));
+    for (const source of ['go', 'kegg', 'reactome']) {
+      const curated = buildCuratedResults(source, genes, aiTone);
+      bySource[source] = mergeResults(bySource[source], curated, 8);
 
-    if (!bySource.go.length) bySource.go = pathwayBucket('go', genes).map(x => ({ ...x, explanation: explainPathway(x, x.overlap, x.score, aiTone) }));
-    if (!bySource.kegg.length) bySource.kegg = pathwayBucket('kegg', genes).map(x => ({ ...x, explanation: explainPathway(x, x.overlap, x.score, aiTone) }));
-    if (!bySource.reactome.length) bySource.reactome = pathwayBucket('reactome', genes).map(x => ({ ...x, explanation: explainPathway(x, x.overlap, x.score, aiTone) }));
+      if (!bySource[source].length) {
+        bySource[source] = [buildSyntheticNoHit(source, genes, aiTone)];
+      }
+    }
 
-    const flat = [
+    bySource.string = buildCuratedResults('string', genes, aiTone);
+    if (!bySource.string.length) {
+      bySource.string = [buildSyntheticNoHit('string', genes, aiTone)];
+    }
+
+    for (const key of ['go', 'kegg', 'reactome', 'string']) {
+      bySource[key] = bySource[key].map(decorateResult);
+    }
+
+    const realFlat = [
       ...bySource.go,
       ...bySource.kegg,
       ...bySource.reactome,
       ...bySource.string
-    ].sort((a, b) => b.score - a.score);
+    ].filter(item => item.source !== 'SYSTEM');
 
-    const active = flat[0] || null;
+    const allResults = realFlat.length
+      ? [...realFlat].sort((a, b) => (b.score || 0) - (a.score || 0))
+      : [buildSyntheticNoHit('combined', genes, aiTone)];
+
+    const active = allResults[0] || null;
+
+    const aliasCount = normalizedInput.normalized.filter(x => x.alias).length;
+    const warnings = [];
+
+    if (genes.length < 8) {
+      warnings.push('Small gene set detected. Enrichment will rely more on overlaps and curated fallback pathways.');
+    }
+
+    if (normalizedInput.unmatched.length) {
+      warnings.push(`${normalizedInput.unmatched.length} input entr${normalizedInput.unmatched.length === 1 ? 'y was' : 'ies were'} not recognized and were ignored.`);
+    }
+
+    const note = gprofilerRows.length
+      ? 'g:Profiler results were returned successfully. Curated fallback pathways are merged in when they improve coverage.'
+      : 'Using curated fallback pathways because the external enrichment service did not return results for this input.';
 
     res.json({
       input: normalizedInput,
@@ -379,53 +480,23 @@ app.post('/api/analyze', async (req, res) => {
       resultsByMode: bySource,
       summary: {
         totalGenes: genes.length,
-        totalResults: flat.length,
+        totalResults: allResults.length,
         topHit: active ? active.title : null,
-        topSource: active ? active.mode : null
+        topSource: active ? active.mode : null,
+        aliasCount,
+        unmatchedCount: normalizedInput.unmatched.length
+      },
+      diagnostics: {
+        aliasCount,
+        unmatchedCount: normalizedInput.unmatched.length,
+        warnings
       },
       active,
-      allResults: flat,
-      note: gprofilerRows.length
-        ? 'g:Profiler results were returned successfully. Curated fallback sets are still available for STRING and for resilience.'
-        : 'Using curated fallback results because the external enrichment API was unavailable.'
+      allResults,
+      note
     });
   } catch (err) {
     res.status(500).json({ error: err.message || 'Analysis failed' });
-  }
-});
-
-app.post('/api/pathway-chat', (req, res) => {
-  try {
-    const {
-      question = '',
-      pathway = {},
-      genes = [],
-      mode = 'combined'
-    } = req.body || {};
-
-    const trimmed = String(question).trim();
-    if (!trimmed) {
-      return res.status(400).json({ error: 'Please type a question.' });
-    }
-
-    const answer = answerPathwayQuestion({
-      pathway,
-      question: trimmed,
-      genes,
-      mode
-    });
-
-    res.json({
-      answer,
-      suggestions: [
-        'Why are these genes important?',
-        'Is this pathway relevant to NASH?',
-        'Which genes are the main drivers?',
-        'What should I look at next?'
-      ]
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message || 'Unable to answer the pathway question.' });
   }
 });
 

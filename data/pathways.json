@@ -1,6 +1,39 @@
 {
   "go": [
     {
+      "title": "B cell activation",
+      "genes": [
+        "MS4A1",
+        "MS4A2",
+        "MS4A4A",
+        "MS4A6A",
+        "CD19",
+        "CD79A",
+        "CD79B",
+        "BLNK",
+        "BANK1",
+        "CD22",
+        "CD37"
+      ],
+      "description": "A B-cell membrane and signaling signature that often appears in immune activation, antigen recognition, and lymphocyte biology."
+    },
+    {
+      "title": "Adaptive immune response",
+      "genes": [
+        "MS4A1",
+        "MS4A2",
+        "CD74",
+        "HLA-DRA",
+        "HLA-DRB1",
+        "CD19",
+        "CD79A",
+        "CD79B",
+        "BLNK",
+        "MS4A4A"
+      ],
+      "description": "This pattern suggests a lymphocyte-driven immune program, often linked to antigen presentation and B-cell maturation."
+    },
+    {
       "title": "Response to cytokine",
       "genes": [
         "IL6",
@@ -56,6 +89,32 @@
   ],
   "kegg": [
     {
+      "title": "B cell receptor signaling pathway",
+      "genes": [
+        "MS4A1",
+        "CD19",
+        "CD79A",
+        "CD79B",
+        "SYK",
+        "BTK",
+        "BLNK",
+        "PIK3CD"
+      ],
+      "description": "A classic B-cell signaling pathway that reflects receptor-driven activation and downstream survival signaling."
+    },
+    {
+      "title": "Antigen processing and presentation",
+      "genes": [
+        "CD74",
+        "HLA-DRA",
+        "HLA-DRB1",
+        "CD19",
+        "MS4A1",
+        "CD79A"
+      ],
+      "description": "This pathway points to immune presentation machinery and is often seen with antigen-presenting cells and adaptive immunity."
+    },
+    {
       "title": "PI3K-Akt signaling pathway",
       "genes": [
         "AKT1",
@@ -108,6 +167,36 @@
   ],
   "reactome": [
     {
+      "title": "B cell receptor signaling",
+      "genes": [
+        "MS4A1",
+        "CD19",
+        "CD79A",
+        "CD79B",
+        "SYK",
+        "BTK",
+        "BLNK",
+        "PIK3CD"
+      ],
+      "description": "Signals from the B-cell receptor cascade through kinases and adaptors to shape activation and survival."
+    },
+    {
+      "title": "Adaptive immune system",
+      "genes": [
+        "MS4A1",
+        "MS4A2",
+        "MS4A4A",
+        "MS4A6A",
+        "CD19",
+        "CD74",
+        "HLA-DRA",
+        "HLA-DRB1",
+        "CD79A",
+        "CD79B"
+      ],
+      "description": "A broad immune-system module that often captures lymphocyte activation and antigen presentation biology."
+    },
+    {
       "title": "Signal transduction",
       "genes": [
         "EGFR",
@@ -156,6 +245,34 @@
     }
   ],
   "string": [
+    {
+      "title": "B-cell membrane cluster",
+      "genes": [
+        "MS4A1",
+        "MS4A2",
+        "MS4A4A",
+        "MS4A6A",
+        "CD19",
+        "CD79A",
+        "CD79B",
+        "CD22",
+        "CD37"
+      ],
+      "description": "A tight membrane-signaling cluster that supports B-cell identity and immune activation."
+    },
+    {
+      "title": "Antigen presentation cluster",
+      "genes": [
+        "CD74",
+        "HLA-DRA",
+        "HLA-DRB1",
+        "CD19",
+        "MS4A1",
+        "CD79A",
+        "CD79B"
+      ],
+      "description": "A network centered on antigen presentation and lymphocyte signaling relationships."
+    },
     {
       "title": "Hub interaction cluster",
       "genes": [
